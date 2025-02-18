@@ -17,12 +17,18 @@ cap.release()
 current_frame = 0
 playback_speed = 100 # задержка в милисекундах(100 мс = нормальная скорость)
 is_playing = True
-print(playback_speed)
+print(f'playback_speed = {playback_speed}')
+
+
+# установка размера окна
+window_name = 'Video'
+cv2.namedWindow(window_name) # Создание окна
+cv2.resizeWindow(window_name, 1280, 1024) # Изменение размера окна на 800х600 пикселей
 
 while True:
     if is_playing:
         # Отображение текущего кадра
-        cv2.imshow('Video', frames[current_frame])
+        cv2.imshow(window_name, frames[current_frame])
         current_frame = (current_frame + 1) % len(frames)  # Циклический переход к началу
 
     key = cv2.waitKey(playback_speed)  # Задержка для воспроизведения
@@ -45,8 +51,13 @@ while True:
         playback_speed += 10  # Увеличение задержки
         print(f'deceleration playback_speed = {playback_speed}')
 
+        # Обновление окна, если видео не воспроизводится
     if not is_playing:
-        cv2.imshow('Video', frames[current_frame])
+        resized_frame = cv2.resize(frames[current_frame], (desired_width, desired_height))
+        cv2.imshow(window_name, resized_frame)
+
+    if not is_playing:
+        cv2.imshow(window_name, frames[current_frame])
 
 
 
