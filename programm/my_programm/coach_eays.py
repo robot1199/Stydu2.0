@@ -22,8 +22,7 @@ print(f'playback_speed = {playback_speed}')
 
 # установка размера окна
 window_name = 'Video'
-cv2.namedWindow(window_name) # Создание окна
-cv2.resizeWindow(window_name, 1280, 1024) # Изменение размера окна на 800х600 пикселей
+
 
 while True:
     if is_playing:
@@ -52,10 +51,6 @@ while True:
         print(f'deceleration playback_speed = {playback_speed}')
 
         # Обновление окна, если видео не воспроизводится
-    if not is_playing:
-        resized_frame = cv2.resize(frames[current_frame], (desired_width, desired_height))
-        cv2.imshow(window_name, resized_frame)
-
     if not is_playing:
         cv2.imshow(window_name, frames[current_frame])
 
