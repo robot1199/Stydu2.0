@@ -1,7 +1,7 @@
 import cv2
 
 # Открытие видеофайла
-video = cv2.VideoCapture('mingechavir.mp4')
+video = cv2.VideoCapture('test2.mp4')
 
 while video.isOpened():
     ret, frame = video.read()  # Чтение кадра
