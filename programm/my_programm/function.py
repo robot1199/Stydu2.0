@@ -50,3 +50,45 @@ def calculate_torso_center(landmarks):
     center_y = (left_shoulder.y + left_hip.y) / 4
 
     return int(center_x), int(center_y)
+
+
+# Функция для вычисления положения звена на основе угла и длины
+def calculate_link_position(base_position, angle, length):
+    x = base_position[0] + length * np.cos(np.radians(angle))
+    y = base_position[1] + length * np.sin(np.radians(angle))
+    return [x, y]
+
+
+# Функция для вычисления отклонения позвоночника от вертикали
+def calculate_spine_deviation(spine_points):
+    # spine_points - список координат точек вдоль позвоночника
+    # Например, [top_of_head, neck, upper_back, lower_back]
+
+    # Вычисляем среднюю позицию позвоночника
+    spine_midpoint = np.mean(spine_points, axis=0)
+
+    # Определяем вертикальную линию (например, по координате x)
+    vertical_line = np.array([spine_midpoint[0], 0])  # y = 0 для вертикали
+
+    # Вычисляем угол отклонения
+    angle_deviation = np.arctan2(spine_midpoint[1], spine_midpoint[0]) * (180 / np.pi)
+
+    return angle_deviation
+
+
+# Функция для вычисления смещения центра масс относительно центра лодки
+def calculate_center_of_mass_shift(body_parts, boat_center):
+    # body_parts - список координат ключевых точек тела
+    # boat_center - координаты центра лодки
+
+    # Вычисляем центр масс спортсмена
+    center_of_mass = np.mean(body_parts, axis=0)
+
+    # Вычисляем смещение центра масс относительно центра лодки
+    shift_vector = center_of_mass - boat_center
+
+    return shift_vector
+
+
+
+
