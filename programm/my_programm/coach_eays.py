@@ -1,14 +1,70 @@
 import cv2
+import numpy as np
+import mediapipe as mp
+
+
+# Инициализация MediaPipe Pose
+mp_pose = mp.solutions.pose
+pose = mp_pose.Pose(
+    min_detection_confidence=0.9,
+    min_tracking_confidence=0.9,
+    model_complexity=2  # Повышенная точность для ног
+)
+
+
+# Параметры для детектора весел
+LOWER_COLOR = np.array([20, 100, 100]) # Подстроить под цвет весел
+UPPER_COLOR = np.array([40, 255, 255])
+
+
+
 
 # Открытие видеофайла
-cap = cv2.VideoCapture('test_video.mp4')
+cap = cv2.VideoCapture('test_video.mp4') # Для видеофайла
+# cap = cv2.VideoCapture(0)  # Для веб-камеры
 frames = []
+
+# Определение соединений между ключевыми точками
+connections = [
+    (11, 13),  # Плечи к локтям
+    (13, 15),  # Локти к запястьям
+    (11, 23),  # Плечи к бедрам
+    (23, 25),  # Бедра к коленям
+    (25, 27)  # Колени к стопам
+]
 
 # Сохранение всех кадров в список
 while True:
     ret, frame = cap.read()
-    if not ret:
+    if not ret or len(frames) > 200:
         break
+
+    # Преобразование цвета для MediaPipe
+    frame = cv2.resize(frame, (1280, 720))
+    frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+    results = pose.process(frame_rgb)
+
+    # Отображение результатов на кадре
+    if results.pose_landmarks:
+        # Индексы точек, которые мы хотим оставить
+        keep_indices = [11, 13, 15, 23, 25, 27]  # Голова, плечи, бедра
+        filtered_landmarks = [results.pose_landmarks.landmark[i] for i in keep_indices]
+
+        # Отображение отфильтрованных точек
+        for landmark in filtered_landmarks:
+            h, w, _ = frame.shape
+            x, y = int(landmark.x * w), int(landmark.y * h)
+            cv2.circle(frame, (x, y), 5, (0, 255, 0), -1)  # Зеленые точки
+
+        # Соединение точек
+        for connection in connections:
+            start_idx, end_idx = connection
+            start_landmark = results.pose_landmarks.landmark[start_idx]
+            end_landmark = results.pose_landmarks.landmark[end_idx]
+            start_point = (int(start_landmark.x * w), int(start_landmark.y * h))
+            end_point = (int(end_landmark.x * w), int(end_landmark.y * h))
+            cv2.line(frame, start_point, end_point, (255, 0, 0), 2)  # Красные линии
+
     frames.append(frame)
 
 cap.release()
