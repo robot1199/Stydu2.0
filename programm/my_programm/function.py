@@ -1,3 +1,5 @@
+import math
+
 import matplotlib.pyplot as plt
 from matplotlib.backends.backend_agg import FigureCanvasAgg as FigureCanvas
 import numpy as np
@@ -26,20 +28,28 @@ def calculate_angle2(a, b, c):
 
     return 180 - angle
 
-# Функция для вычисления угла между тремя точками
+# # Функция для вычисления угла между тремя точками
+# def calculate_angle(a, b, c):
+#     a = np.array(a)  # Первая точка
+#     b = np.array(b)  # Вершина угла
+#     c = np.array(c)  # Вторая точка
+#
+#     # Вычисляем угол в радианах
+#     radians = np.arctan2(c[1] - b[1], c[0] - b[0]) - np.arctan2(a[1] - b[1], a[0] - b[0])
+#     angle = np.abs(radians * 180.0 / np.pi)  # Преобразуем в градусы
+#
+#     # Убедимся, что угол не превышает 180 градусов
+#     if angle > 180.0:
+#         angle = 360 - angle
+#
+#     return angle
+
 def calculate_angle(a, b, c):
-    a = np.array(a)  # Первая точка
-    b = np.array(b)  # Вершина угла
-    c = np.array(c)  # Вторая точка
-
-    # Вычисляем угол в радианах
-    radians = np.arctan2(c[1] - b[1], c[0] - b[0]) - np.arctan2(a[1] - b[1], a[0] - b[0])
-    angle = np.abs(radians * 180.0 / np.pi)  # Преобразуем в градусы
-
-    # Убедимся, что угол не превышает 180 градусов
-    if angle > 180.0:
-        angle = 360 - angle
-
+    ba = (a[0] - b[0], a[1] - b[1])
+    bc = (c[0] - b[0], c[1] - b[1])
+    cosine_angle = (ba[0] * bc[0] + ba[1] * bc[1]) / (
+        math.sqrt(ba[0]**2 + ba[1]**2) * math.sqrt(bc[0]**2 + bc[1]**2))
+    angle = math.degrees(math.acos(cosine_angle))
     return angle
 
 
@@ -117,4 +127,21 @@ def plot_knee_load(history):
 
     plt.close(fig)  # Закрываем фигуру
     return graph_image
+
+
+# Функция для сглаживания координат
+def smooth_coordinates(history, current_point, window_size=5):
+    history.append(current_point)
+    if len(history) > window_size:
+        history.pop(0)
+    return np.mean(history, axis=0)
+
+
+# Функция для обновления фильтра Калмана
+def update_kalman(kalman, x, y):
+    measurement = np.array([[x], [y]], dtype=np.float32)
+    kalman.correct(measurement)
+    prediction = kalman.predict()
+    return prediction[0], prediction[1]
+
 

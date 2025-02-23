@@ -12,8 +12,8 @@ from matplotlib.backends.backend_agg import FigureCanvasAgg as FigureCanvas
 # Инициализация MediaPipe Pose
 mp_pose = mp.solutions.pose
 pose = mp_pose.Pose(
-    min_detection_confidence=0.9,  # Уровень уверенности для обнаружения
-    min_tracking_confidence=0.9,  # Уровень уверенности для отслеживания
+    min_detection_confidence=0.95,  # Уровень уверенности для обнаружения
+    min_tracking_confidence=0.95,  # Уровень уверенности для отслеживания
     model_complexity=2  # Повышенная точность для ног
 )
 
@@ -21,12 +21,18 @@ pose = mp_pose.Pose(
 body_mass = 90 # Масса тела в кг
 length_of_leg = 0.5  # Длина голени в метрах (например, 50 см)
 
+# Инициализация фильтра Калмана
+kalman = cv2.KalmanFilter(4, 2)
+kalman.measurementMatrix = np.array([[1, 0, 0, 0], [0, 1, 0, 0]], np.float32)
+kalman.transitionMatrix = np.array([[1, 0, 1, 0], [0, 1, 0, 1], [0, 0, 1, 0], [0, 0, 0, 1]], np.float32)
+kalman.processNoiseCov = np.eye(4, dtype=np.float32) * 0.03
+
 # Параметры для детектора весел
 LOWER_COLOR = np.array([20, 100, 100])  # Нижний предел цвета весел в HSV
 UPPER_COLOR = np.array([40, 255, 255])  # Верхний предел цвета весел в HSV
 
 # Открытие видеофайла test_video.mp4
-cap = cv2.VideoCapture('IMG_6849.mp4')  # Для видеофайла
+cap = cv2.VideoCapture('test_video.mp4')  # Для видеофайла
 # cap = cv2.VideoCapture(0)  # Для веб-камеры
 frames = []  # Список для хранения кадров
 
@@ -47,6 +53,12 @@ angular_velocities = []
 angular_accelerations = []
 knee_load = 0 # нагрузка на колено
 knee_load_history = []  # История нагрузки на колено для графика
+left_shoulder_history = []
+left_elbow_history = []
+left_wrist_history = []
+left_hip_history = []
+left_knee_history = []
+left_ankle_history = []
 
 
 # Сохранение всех кадров в список
@@ -73,23 +85,25 @@ while True:
         top_of_head = [landmarks[0].x * w, landmarks[0].y * h]  # Верхушка головы
         neck = [landmarks[1].x * w, landmarks[1].y * h]  # Шея
 
-        left_shoulder = [landmarks[11].x * w, landmarks[11].y * h]  # Левое плечо
+        left_shoulder = smooth_coordinates(left_shoulder_history, [landmarks[11].x * w, landmarks[11].y * h] ) # Левое плечо
         right_shoulder = [landmarks[12].x * w, landmarks[12].y * h]  # правое плечо
 
-        left_elbow = [landmarks[13].x * w, landmarks[13].y * h]  # Левый локоть
+        left_elbow = smooth_coordinates(left_elbow_history, [landmarks[13].x * w, landmarks[13].y * h])  # Левый локоть
         right_elbow = [landmarks[14].x * w, landmarks[14].y * h]  # правое локоть
 
-        left_wrist = [landmarks[15].x * w, landmarks[15].y * h]  # Левая кисть
+        left_wrist = smooth_coordinates(left_wrist_history, [landmarks[15].x * w, landmarks[15].y * h])   # Левая кисть
         right_wrist = [landmarks[16].x * w, landmarks[16].y * h]  # правое кисть
 
-        left_hip = [landmarks[23].x * w, landmarks[23].y * h]  # Левое бедро
+        left_hip = smooth_coordinates(left_hip_history, [landmarks[23].x * w, landmarks[23].y * h])   # Левое бедро
         right_hip = [landmarks[24].x * w, landmarks[24].y * h]  # правое бедро
 
-        left_knee = [landmarks[25].x * w, landmarks[25].y * h]  # Левое колено
+        left_knee = smooth_coordinates(left_knee_history, [landmarks[25].x * w, landmarks[25].y * h])   # Левое колено
         right_knee = [landmarks[26].x * w, landmarks[26].y * h]  # правое колено
 
-        left_ankle = [landmarks[27].x * w, landmarks[27].y * h]  # Левая стопа
+        left_ankle = smooth_coordinates(left_ankle_history, [landmarks[27].x * w, landmarks[27].y * h])   # Левая стопа
         right_ankle = [landmarks[28].x * w, landmarks[28].y * h]  # правое стопа
+
+
 
 
 
@@ -126,22 +140,17 @@ while True:
 
         # Расчет углового ускорения
         if len(angular_velocities) > 1:
-            if current_angle < previous_angle:
-                knee_load = 0
-
-            else:
-
-                delta_omega = angular_velocities[-1] - angular_velocities[-2]
-                alpha = delta_omega / time_interval
-                angular_accelerations.append(alpha)
+            delta_omega = angular_velocities[-1] - angular_velocities[-2]
+            alpha = delta_omega / time_interval
+            angular_accelerations.append(alpha)
 
               # Расчет линейного ускорения
-                linear_acceleration = length_of_leg * alpha
+            linear_acceleration = length_of_leg * alpha
 
             # Расчет нагрузки на колено
-                g = 9.81  # Ускорение свободного падения в м/с²
-                knee_load = (body_mass * (g + linear_acceleration * np.sin(current_angle_radians))) / 9.81
-                knee_load_history.append(knee_load)  # Сохранение нагрузки на колено
+            g = 9.81  # Ускорение свободного падения в м/с²
+            knee_load = smooth_coordinates(knee_load_history,  (body_mass * (g + linear_acceleration * np.sin(current_angle_radians))) / 9.81, window_size=3)
+            knee_load_history.append(knee_load)  # Сохранение нагрузки на колено
         # Обновление предыдущего угла
         previous_angle = current_angle
 
@@ -154,15 +163,15 @@ while True:
         front_scale = .7
         # Вывод углов на текстовой панели
         cv2.putText(panel, f'Shoulder-Elbow-Wrist: {int(shoulder_elbow_wrist_angle)} degrees',
-                    (10, 150), cv2.FONT_HERSHEY_SIMPLEX, front_scale, (0, 255, 0), 2, cv2.LINE_AA)
+                    (10, 50), cv2.FONT_HERSHEY_SIMPLEX, front_scale, (0, 255, 0), 2, cv2.LINE_AA)
         cv2.putText(panel, f'Shoulder-Hip-Knee: {int(knee_hip_shoulder_angle)} degrees',
                     (10, 100), cv2.FONT_HERSHEY_SIMPLEX, front_scale, (0, 255, 0), 2, cv2.LINE_AA)
         cv2.putText(panel, f'Hip-Knee-Ankle: {int(hip_knee_ankle_angle)} degrees',
-                    (10, 50), cv2.FONT_HERSHEY_SIMPLEX, front_scale, (0, 255, 0), 2, cv2.LINE_AA)
+                    (10, 150), cv2.FONT_HERSHEY_SIMPLEX, front_scale, (0, 255, 0), 2, cv2.LINE_AA)
         cv2.putText(panel, f'Shoulder-Hip Angle: {int(shoulder_hip_angle)} degrees',
-                    (10, 250), cv2.FONT_HERSHEY_SIMPLEX, front_scale, (0, 255, 0), 2, cv2.LINE_AA)
-        cv2.putText(panel, f'Knee-Ankle Angle: {int(knee_ankle_angle)} degrees',
                     (10, 200), cv2.FONT_HERSHEY_SIMPLEX, front_scale, (0, 255, 0), 2, cv2.LINE_AA)
+        cv2.putText(panel, f'Knee-Ankle Angle: {int(knee_ankle_angle)} degrees',
+                    (10, 250), cv2.FONT_HERSHEY_SIMPLEX, front_scale, (0, 255, 0), 2, cv2.LINE_AA)
         cv2.putText(panel, f"Knee Load: {knee_load:.1f} KG",
                     (10, 300), cv2.FONT_HERSHEY_SIMPLEX, front_scale, (0, 255, 0), 2, cv2.LINE_AA)
 
