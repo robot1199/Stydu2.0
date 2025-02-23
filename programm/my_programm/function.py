@@ -1,4 +1,7 @@
+import matplotlib.pyplot as plt
+from matplotlib.backends.backend_agg import FigureCanvasAgg as FigureCanvas
 import numpy as np
+
 
 
 
@@ -89,6 +92,29 @@ def calculate_center_of_mass_shift(body_parts, boat_center):
 
     return shift_vector
 
+# функция для создания графиков
+import numpy as np
+import matplotlib.pyplot as plt
+from matplotlib.backends.backend_agg import FigureCanvasAgg as FigureCanvas
 
+def plot_knee_load(history):
+    fig, ax = plt.subplots(figsize=(8, 2))  # создаем фигуру и оси
+    ax.plot(history, color='green')  # рисуем график
+    ax.set_title('Knee Load Over Time')  # Заголовок
+    ax.set_xlabel('Frame')
+    ax.set_ylabel('KG')
+    ax.grid(True)  # включаем сетку
 
+    # Преобразуем график в изображение
+    canvas = FigureCanvas(fig)
+    canvas.draw()  # Рендерим график
+    graph_image = np.frombuffer(canvas.tostring_argb(), dtype=np.uint8)  # Преобразуем в массив
+    graph_image = graph_image.reshape(fig.canvas.get_width_height()[::-1] + (4,))  # Изменяем форму на (высота, ширина, 4)
+
+    # Преобразуем из ARGB в RGB
+    graph_image = np.roll(graph_image, 3, axis=2)  # Перемещаем альфа-канал в конец
+    graph_image = graph_image[:, :, :3]  # Убираем альфа-канал
+
+    plt.close(fig)  # Закрываем фигуру
+    return graph_image
 

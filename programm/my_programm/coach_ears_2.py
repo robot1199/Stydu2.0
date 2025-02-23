@@ -25,8 +25,8 @@ length_of_leg = 0.5  # Длина голени в метрах (например
 LOWER_COLOR = np.array([20, 100, 100])  # Нижний предел цвета весел в HSV
 UPPER_COLOR = np.array([40, 255, 255])  # Верхний предел цвета весел в HSV
 
-# Открытие видеофайла
-cap = cv2.VideoCapture('test_video.mp4')  # Для видеофайла
+# Открытие видеофайла test_video.mp4
+cap = cv2.VideoCapture('IMG_6849.mp4')  # Для видеофайла
 # cap = cv2.VideoCapture(0)  # Для веб-камеры
 frames = []  # Список для хранения кадров
 
@@ -46,6 +46,7 @@ previous_angle = 30  # Начальный угол в градусах
 angular_velocities = []
 angular_accelerations = []
 knee_load = 0 # нагрузка на колено
+knee_load_history = []  # История нагрузки на колено для графика
 
 
 # Сохранение всех кадров в список
@@ -140,49 +141,15 @@ while True:
             # Расчет нагрузки на колено
                 g = 9.81  # Ускорение свободного падения в м/с²
                 knee_load = (body_mass * (g + linear_acceleration * np.sin(current_angle_radians))) / 9.81
-
+                knee_load_history.append(knee_load)  # Сохранение нагрузки на колено
         # Обновление предыдущего угла
         previous_angle = current_angle
 
 
 
 
-
-
-#______________________________________________________________________
-        # # Предполагаемая ширина и длина лодки
-        # boat_width = 0.5  # Ширина лодки в метрах
-        # boat_length = 3.0  # Длина лодки в метрах
-        #
-        #
-        # # Предположим, что центр лодки будет находиться на уровне бедер
-        # boat_center = (left_hip[0], left_hip[1] - (boat_length / 2))
-
-
-        # # Пример использования функций
-        # spine_points = np.array([[landmarks[0].x * w, landmarks[0].y * h],  # Верхушка головы
-        #                          [landmarks[1].x * w, landmarks[1].y * h],  # Шея
-        #                          [landmarks[2].x * w, landmarks[2].y * h],  # Верхняя часть спины
-        #                          [landmarks[3].x * w, landmarks[3].y * h],  # Нижняя часть спины
-        #                          [landmarks[4].x * w, landmarks[4].y * h]])  # Крестец # координаты точек позвоночника
-        #
-        # body_parts = np.array([top_of_head,
-        #                        neck,
-        #                        left_shoulder, right_shoulder,
-        #                        left_elbow, right_elbow,
-        #                        left_wrist, right_wrist,
-        #                        left_hip, right_hip,
-        #                        left_knee, right_knee,
-        #                        left_ankle, right_ankle])  # координаты ключевых точек тела
-        #
-        # # Вычисляем отклонение позвоночника
-        # spine_deviation = calculate_spine_deviation(spine_points)
-
-        # Вычисляем смещение центра масс
-        # center_of_mass_shift = calculate_center_of_mass_shift(body_parts, boat_center)
-#+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++=
         # Создание текстовой панели для отображения углов
-        panel = np.zeros((400, 800, 3), dtype=np.uint8)  # Черная панель внизу видео
+        panel = np.zeros((550, 800, 3), dtype=np.uint8)  # Черная панель внизу видео
 
         front_scale = .7
         # Вывод углов на текстовой панели
@@ -199,8 +166,15 @@ while True:
         cv2.putText(panel, f"Knee Load: {knee_load:.1f} KG",
                     (10, 300), cv2.FONT_HERSHEY_SIMPLEX, front_scale, (0, 255, 0), 2, cv2.LINE_AA)
 
+        if len(knee_load_history) > 1:
+            graph_image = plot_knee_load(knee_load_history)  # Создание графика
+            graph_image = cv2.resize(graph_image, (800, 200))  # Изменение размера графика
+            panel[350:550, 0:800] = graph_image  # Вставка графика в панель
 
-
+        # Отображение отфильтрованных точек
+        for landmark in filtered_landmarks:
+            x, y = int(landmark.x * w), int(landmark.y * h)
+            cv2.circle(frame, (x, y), 5, (255, 0, 0), -1)
 
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
@@ -211,10 +185,7 @@ while True:
             x, y = int(landmark.x * w), int(landmark.y * h)  # Преобразование нормализованных координат
             cv2.circle(frame, (x, y), 5, (255, 0,  0), -1)  # Отображение зеленых точек
 
-        # Рисуем точку центра лодки
-        # cv2.circle(frame, (int(boat_center[0]), int(boat_center[1])), radius=5, color=(0, 0, 255), thickness=-1)
-
-
+        
         # Соединение точек
         for connection in connections:
             start_idx, end_idx = connection
